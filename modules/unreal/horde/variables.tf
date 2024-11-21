@@ -380,6 +380,7 @@ variable "agents" {
   type = map(object({
     ami           = string
     instance_type = string
+    spot = optional(bool, false)
     block_device_mappings = list(
       object({
         device_name = string

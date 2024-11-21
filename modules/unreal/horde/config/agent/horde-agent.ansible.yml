@@ -76,6 +76,7 @@
         mode: "0644"
       become: true
       become_user: "{{ horde_user_name }}"
+      #step for getting svc account and returning token
     - name: Configure the Horde Agent
       ansible.builtin.shell:
         chdir: $HORDE_AGENT_DIR

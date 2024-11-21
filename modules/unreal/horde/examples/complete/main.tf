@@ -33,6 +33,21 @@ module "unreal_engine_horde" {
         }
       ]
     }
+    ubuntu-arm = {
+      ami           = data.aws_ami.ubuntu_noble_arm.id
+      instance_type = "c7g.large"
+      spot = true
+      min_size      = 2
+      max_size      = 5
+      block_device_mappings = [
+        {
+          device_name = "/dev/sda1"
+          ebs = {
+            volume_size = 64
+          }
+        }
+      ]
+    }
   }
 
   fully_qualified_domain_name = "horde.${var.root_domain_name}"

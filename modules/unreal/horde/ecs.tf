@@ -76,10 +76,6 @@ resource "aws_ecs_task_definition" "unreal_horde_task_definition" {
         {
           name  = "Horde__databasePublicCert",
           value = "/app/config/global-bundle.pem"
-        },
-        {
-          name  = "Horde__enableNewAgentsByDefault"
-          value = "true"
         }
       ], local.horde_service_env)
       logConfiguration = {
