@@ -32,26 +32,154 @@ resource "aws_launch_template" "unreal_horde_agent_template" {
 }
 
 resource "aws_autoscaling_group" "unreal_horde_agent_asg" {
-  for_each    = aws_launch_template.unreal_horde_agent_template
+  for_each = aws_launch_template.unreal_horde_agent_template
   name_prefix = "unreal_horde_agents-${each.key}-"
+  
+  mixed_instances_policy {
+    launch_template {
+      launch_template_specification {
+        launch_template_id = each.value.id
+        version = "$Latest"
+      }
 
-  launch_template {
-    id      = each.value.id
-    version = "$Latest"
+      # Here's where we specify instance types
+      override {
+        instance_type = "c7a.4xlarge"
+      }
+      override {
+        instance_type = "c7a.8xlarge"
+      }
+      override {
+        instance_type = "c6a.4xlarge"
+      }
+      override {
+        instance_type = "c6a.8xlarge"
+      }
+      override {
+        instance_type = "c5a.4xlarge"
+      }
+      override {
+        instance_type = "c5a.8xlarge"
+      }
+    }
+
+    instances_distribution {
+      on_demand_percentage_above_base_capacity = 0
+      spot_allocation_strategy = "price-capacity-optimized"
+    }
   }
-
+  
   vpc_zone_identifier = var.unreal_horde_service_subnets
-
   min_size = var.agents[each.key].min_size
   max_size = var.agents[each.key].max_size
-
+  
   tag {
-    key                 = "Name"
-    value               = "${each.key} Horde Agent"
+    key = "Name"
+    value = "${each.key} Horde Agent"
     propagate_at_launch = true
   }
 
+  # Enable group metrics collection
+  enabled_metrics = [
+    "GroupMinSize",
+    "GroupMaxSize",
+    "GroupDesiredCapacity",
+    "GroupInServiceInstances",
+    "GroupInServiceCapacity",
+    "GroupPendingInstances",
+    "GroupPendingCapacity",
+    "GroupTerminatingInstances",
+    "GroupTerminatingCapacity",
+    "GroupStandbyInstances",
+    "GroupStandbyCapacity",
+    "GroupTotalInstances",
+    "GroupTotalCapacity",
+    "WarmPoolMinSize",
+    "WarmPoolDesiredCapacity",
+    "WarmPoolPendingCapacity",
+    "WarmPoolTerminatingCapacity",
+    "WarmPoolWarmedCapacity",
+    "WarmPoolTotalCapacity",
+    "GroupAndWarmPoolDesiredCapacity",
+    "GroupAndWarmPoolTotalCapacity"
+  ]
+  
   depends_on = [aws_ecs_service.unreal_horde]
+}
+
+# Then create the scaling policy for the ASG
+resource "aws_autoscaling_policy" "cpu_policy" {
+  # Use the same for_each as the ASG
+  for_each = aws_launch_template.unreal_horde_agent_template
+
+  name                   = "cpu-tracking-policy-${each.key}"
+  # Reference the ASG using the same key from for_each
+  autoscaling_group_name = aws_autoscaling_group.unreal_horde_agent_asg[each.key].name
+  policy_type           = "TargetTrackingScaling"
+  estimated_instance_warmup = 300
+
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+    
+    target_value = 75.0
+    disable_scale_in = true
+  }
+}
+
+# CloudWatch Alarm for high CPU
+resource "aws_cloudwatch_metric_alarm" "cpu_alarm_high" {
+  for_each = aws_launch_template.unreal_horde_agent_template
+
+  alarm_name          = "cpu-utilization-high-${each.key}"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "2"
+  metric_name        = "CPUUtilization"
+  namespace          = "AWS/EC2"
+  period             = "300"
+  statistic          = "Average"
+  threshold          = 75
+
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.unreal_horde_agent_asg[each.key].name
+  }
+
+  alarm_description = "This metric monitors EC2 CPU utilization for scaling out"
+  alarm_actions     = [aws_autoscaling_policy.cpu_policy[each.key].arn]
+}
+
+# CPU Scale-IN Policy (Scale Down)
+resource "aws_autoscaling_policy" "cpu_scale_in" {
+  for_each = aws_autoscaling_group.unreal_horde_agent_asg
+
+  name                   = "cpu-scale-in-policy-${each.key}"
+  autoscaling_group_name = each.value.name
+  adjustment_type        = "ChangeInCapacity"
+  policy_type           = "SimpleScaling"
+  scaling_adjustment     = -1  # Remove one instance at a time
+  cooldown              = 7200 # 2 hour cooldown before next scale-in
+}
+
+# CloudWatch Alarm for low CPU
+resource "aws_cloudwatch_metric_alarm" "cpu_alarm_low" {
+  for_each = aws_launch_template.unreal_horde_agent_template
+
+  alarm_name          = "cpu-utilization-low-${each.key}"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = "24"
+  metric_name        = "CPUUtilization"
+  namespace          = "AWS/EC2"
+  period             = "300"
+  statistic          = "Average"
+  threshold          = 30 # 30 percent CPU
+
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.unreal_horde_agent_asg[each.key].name
+  }
+
+  alarm_description = "Scale in if CPU is below 30% for 2 hours"
+  alarm_actions     = [aws_autoscaling_policy.cpu_scale_in[each.key].arn]  # This links the alarm to the policy
 }
 
 data "aws_iam_policy_document" "ec2_trust_relationship" {
@@ -93,16 +221,21 @@ resource "aws_iam_policy" "horde_agents_s3_policy" {
 
 # Instance Role
 resource "aws_iam_role" "unreal_horde_agent_default_role" {
-  count              = length(var.agents) > 0 ? 1 : 0
-  name               = "unreal-horde-agent-default-instance-role"
+  count = length(var.agents) > 0 ? 1 : 0
+  name = "unreal-horde-agent-default-instance-role"
   assume_role_policy = data.aws_iam_policy_document.ec2_trust_relationship[0].json
+  tags = local.tags
+}
 
-  managed_policy_arns = [
+# Policy Attachments (new resource)
+resource "aws_iam_role_policy_attachments_exclusive" "unreal_horde_agent_role_policies" {
+  count = length(var.agents) > 0 ? 1 : 0
+  role_name  = aws_iam_role.unreal_horde_agent_default_role[0].name
+  
+  policy_arns = [
     "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
     aws_iam_policy.horde_agents_s3_policy[0].arn
   ]
-
-  tags = local.tags
 }
 
 # Instance Profile

@@ -52,15 +52,18 @@ resource "aws_iam_policy" "unreal_horde_default_policy" {
 
 resource "aws_iam_role" "unreal_horde_default_role" {
   count = var.create_unreal_horde_default_role ? 1 : 0
-
-  name               = "${var.project_prefix}-unreal_horde-default-role"
+  name = "${var.project_prefix}-unreal_horde-default-role"
   assume_role_policy = data.aws_iam_policy_document.ecs_tasks_trust_relationship.json
+  tags = local.tags
+}
 
-  managed_policy_arns = [
+resource "aws_iam_role_policy_attachments_exclusive" "unreal_horde_default_role_policies" {
+  count = var.create_unreal_horde_default_role ? 1 : 0
+  role_name = aws_iam_role.unreal_horde_default_role[0].name
+  
+  policy_arns = [
     aws_iam_policy.unreal_horde_default_policy[0].arn
   ]
-
-  tags = local.tags
 }
 
 data "aws_iam_policy_document" "unreal_horde_secrets_manager_policy" {
@@ -83,7 +86,14 @@ resource "aws_iam_policy" "unreal_horde_secrets_manager_policy" {
 
 resource "aws_iam_role" "unreal_horde_task_execution_role" {
   name = "${var.project_prefix}-unreal_horde-task-execution-role"
+  assume_role_policy = data.aws_iam_policy_document.ecs_tasks_trust_relationship.json
+}
 
-  assume_role_policy  = data.aws_iam_policy_document.ecs_tasks_trust_relationship.json
-  managed_policy_arns = ["arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy", aws_iam_policy.unreal_horde_secrets_manager_policy.arn]
+resource "aws_iam_role_policy_attachments_exclusive" "unreal_horde_task_execution_role_policies" {
+  role_name = aws_iam_role.unreal_horde_task_execution_role.name
+  
+  policy_arns = [
+    "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+    aws_iam_policy.unreal_horde_secrets_manager_policy.arn
+  ]
 }
