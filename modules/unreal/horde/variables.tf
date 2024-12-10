@@ -406,3 +406,8 @@ variable "enable_new_agents_by_default" {
   description = "Set this flag to automatically enable new agents that enroll with the Horde Server."
   default     = false
 }
+
+variable "horde_token" {
+    description = "Token for Horde"
+    type        = string
+}

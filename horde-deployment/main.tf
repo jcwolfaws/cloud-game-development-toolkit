@@ -18,6 +18,7 @@ module "horde" {
 
     unreal_horde_external_alb_subnets = var.unreal_horde_external_alb_subnets  # External ALB used by developers
     unreal_horde_internal_alb_subnets = var.unreal_horde_internal_alb_subnets # Internal ALB used by agents
+    horde_token = var.horde_token
 
     agents = {
         ubuntu-x86 = {

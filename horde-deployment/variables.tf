@@ -32,3 +32,8 @@ variable "unreal_horde_external_alb_subnets" {
     description = "IDs of the subnets"
     type        = list(string)
 }
+
+variable "horde_token" {
+    description = "Token for Horde"
+    type        = string
+}
