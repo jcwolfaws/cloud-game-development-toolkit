@@ -3,31 +3,37 @@ on:
   schedule:
     - cron: '0 0 * * *'  # This will run the action every day at midnight
   workflow_dispatch: # If we need to run the action manually
-permissions:
-  contents: read
+
 jobs:
   update-changelog:
     if: github.repository == 'aws-games/cloud-game-development-toolkit'
     concurrency:
       group: changelog-build
     permissions:
-      contents: write # Used to create temporary branch for changelog updates
-      pull-requests: write # Used to create PRs for changelog updates
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
     - name: Check out code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-        token: ${{ secrets.BOT_PAT }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup git-chglog
+      run: |
+        wget https://github.com/git-chglog/git-chglog/releases/download/v0.15.4/git-chglog_0.15.4_linux_amd64.tar.gz
+        tar -zxvf git-chglog_0.15.4_linux_amd64.tar.gz
+        sudo mv git-chglog /usr/local/bin/
+
     - name: Update Changelog
       env:
-        GH_TOKEN: ${{ secrets.BOT_PAT }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         FILE_TO_COMMIT: CHANGELOG.md
         DESTINATION_BRANCH: changelog-${{ github.run_id }}
       run: |
         git fetch --tags origin
-        docker run --rm -v $(pwd):/workdir quay.io/git-chglog/git-chglog -o CHANGELOG.md
+        git-chglog -o CHANGELOG.md
         export TODAY=$( date -u '+%Y-%m-%d' )
         export MESSAGE="chore: regenerate $FILE_TO_COMMIT for $TODAY"
         export CONTENT=$( base64 -i $FILE_TO_COMMIT )
