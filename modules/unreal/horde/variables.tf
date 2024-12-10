@@ -391,6 +391,7 @@ variable "agents" {
     )
     min_size = optional(number, 0)
     max_size = optional(number, 1)
+    desired_capacity = optional(number, 1)
   }))
   description = "Configures autoscaling groups to be used as build agents by Unreal Engine Horde."
   default     = {}

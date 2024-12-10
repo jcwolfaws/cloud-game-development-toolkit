@@ -72,6 +72,7 @@ resource "aws_autoscaling_group" "unreal_horde_agent_asg" {
   vpc_zone_identifier = var.unreal_horde_service_subnets
   min_size = var.agents[each.key].min_size
   max_size = var.agents[each.key].max_size
+  desired_capacity = var.agents[each.key].desired_capacity
   
   tag {
     key = "Name"

@@ -26,6 +26,7 @@ module "horde" {
             instance_type = "c7a.8xlarge"
             min_size      = 2
             max_size      = 10
+            desired_capacity  = 4
             block_device_mappings = [
                 {
                     device_name = "/dev/sda1"
