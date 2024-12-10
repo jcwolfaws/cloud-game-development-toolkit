@@ -80,7 +80,7 @@
     - name: Configure the Horde Agent
       ansible.builtin.shell:
         chdir: $HORDE_AGENT_DIR
-        cmd: dotnet HordeAgent.dll SetServer -Name="Default" -Url="$HORDE_SERVER_URL" -Default
+        cmd: dotnet HordeAgent.dll SetServer -Name="Default" -Url="$HORDE_SERVER_URL" -Token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiQW5vbnltb3VzIiwiaHR0cDovL2VwaWNnYW1lcy5jb20vdWUvaG9yZGUvcm9sZSI6ImFnZW50LXJlZ2lzdHJhdGlvbiIsImlzcyI6Imh0dHA6Ly9pcC0xMC0wLTMtMTMxLnVzLXdlc3QtMi5jb21wdXRlLmludGVybmFsOjUwMDAvIn0.ZJqQTlaMcVZ-pB00khibmOQOQpKy3OxySXD-e6dyFkE" -Default
       become: true
       become_user: "{{ horde_user_name }}"
       environment:
