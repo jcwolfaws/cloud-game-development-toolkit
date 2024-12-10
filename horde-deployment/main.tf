@@ -23,7 +23,7 @@ module "horde" {
         ubuntu-x86 = {
             ami           = data.aws_ami.ubuntu_noble_amd.id
             instance_type = "c7a.8xlarge"
-            min_size      = 4
+            min_size      = 2
             max_size      = 10
             block_device_mappings = [
                 {
