@@ -66,3 +66,8 @@ id_ed25519.pub
 # drawio temp and backup files
 *.drawio.bkp
 *.drawio.dtmp
+*.tfplan
+*.tfstate
+*.tfstate.backup
+*.tfvars
+plan.json
