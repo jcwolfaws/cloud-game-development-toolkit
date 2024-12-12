@@ -25,7 +25,7 @@ module "horde" {
             ami           = data.aws_ami.ubuntu_noble_amd.id
             instance_type = "c7a.8xlarge"
             min_size      = 2
-            max_size      = 10
+            max_size      = 8
             desired_capacity  = 4
             block_device_mappings = [
                 {
